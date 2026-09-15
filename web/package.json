@@ -1,0 +1,26 @@
+{
+  "name": "awesome-dsh-zotero-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "content": "node scripts/build-content.mjs",
+    "dev": "npm run content && next dev",
+    "build": "npm run content && next build",
+    "start": "npx serve out",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "highlight.js": "11.11.1",
+    "marked": "15.0.7",
+    "typescript": "5.7.3"
+  }
+}

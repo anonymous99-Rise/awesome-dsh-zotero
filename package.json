@@ -1,0 +1,20 @@
+{
+  "name": "awesome-dsh-zotero-tools",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "DSH 科研工具手册：Markdown 源文件 + DOCX 生成 + Next.js 静态站点",
+  "license": "MIT",
+  "scripts": {
+    "build:docx": "node tools/build-docx.mjs",
+    "build:web": "npm --prefix web run build",
+    "build": "npm run build:docx && npm run build:web",
+    "dev": "npm --prefix web run dev",
+    "check": "python tools/check-docx.py"
+  },
+  "devDependencies": {
+    "adm-zip": "^0.6.1",
+    "docx": "^9.5.1",
+    "marked": "^15.0.7"
+  }
+}

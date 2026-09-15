@@ -1,0 +1,18 @@
+# 依赖
+node_modules/
+
+# 构建中间产物
+docx/.tmp-unpacked/
+*.tmp.zip
+web/.next/
+web/out/
+
+# 由 Markdown 自动生成的站点资源
+web/content/
+web/public/search.json
+web/public/downloads/
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
