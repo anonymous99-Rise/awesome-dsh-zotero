@@ -86,10 +86,24 @@ npm run build               # → docx/*.docx + web/out/
 ### 自检脚本
 
 ```bash
-python tools/check-docx.py <解包后的目录>        # DOCX 结构与样式自检
-cd web && python scripts/check-links.py          # 站内链接 / 锚点自检（应为 0 断链）
-cd web && python scripts/qa-out.py               # 导出产物关键元素自检
+node tools/verify-docx.mjs                        # DOCX 出厂自检（结构 + 规范）
+python tools/check-docx.py <解包后的目录>          # DOCX 结构与样式自检
+python tools/detect-orphan-rules.py <pdf>         # 扫描孤立分隔线（需先转 PDF）
+cd web && python scripts/check-links.py           # 站内链接 / 锚点自检（应为 0 断链）
+cd web && python scripts/qa-out.py                # 导出产物关键元素自检
 ```
+
+`tools/verify-docx.mjs` 会跑**两道独立检查**：
+
+- **mammoth**（结构级）—— 确认 ZIP 重写没破坏内容
+- **officecli**（OpenXML 规范级）—— 确认能通过 schema 校验、没有悬空样式引用
+
+officecli 是可选的，没安装会自动跳过。它会把**预期内的建议**（间距空段落、中文公文式首行缩进）
+与**真正的缺陷**（悬空引用）分开报告，只有后者会让自检失败。
+
+> 📌 officecli 本机有两条命令路径：npm 全局装的是 0.2.121 **启动器**（非 TTY 环境会报错），
+> 真正能用的是 `%LOCALAPPDATA%\OfficeCli\officecli.exe`（1.x）；脚本已自动优先选后者。
+
 
 ---
 
