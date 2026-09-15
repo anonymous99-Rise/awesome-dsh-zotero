@@ -3,7 +3,7 @@
 > **Zotero 插件 × DSH Desktop × 生物信息学科研工作流**
 > 一本写给生物信息学方向研究生的工具手册：文献怎么管、AI 怎么装、插件怎么挑、科研怎么跑。
 
-🌐 **在线阅读**：<https://anonymous99-Rise.github.io/awesome-dsh-zotero/>
+🌐 **在线阅读**：<https://anonymous99-rise.github.io/awesome-dsh-zotero/>
 📄 **Word 版**：[`docx/DSH科研工具手册.docx`](./docx/DSH科研工具手册.docx)
 
 ---
