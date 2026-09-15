@@ -939,15 +939,16 @@ const doc = new Document({
   ],
 });
 
-/* ────────────────────────── 输出 + 东亚字体修正 ────────────────────────── */
+/* ────────────────────────── 输出 + 样式/字体修正 ────────────────────────── */
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const buffer = await Packer.toBuffer(doc);
 fs.writeFileSync(OUT, buffer);
 
-// docx-js 只写 ascii/hAnsi/cs，中文会落到主题字体；补 w:eastAsia 保证中文字形一致。
 const zip = new AdmZip(OUT);
 let patched = 0;
+
+// 1) docx-js 只写 ascii/hAnsi/cs，中文会落到主题字体；补 w:eastAsia 保证中文字形一致。
 for (const rel of ['word/styles.xml', 'word/document.xml']) {
   const entry = zip.getEntry(rel);
   if (!entry) continue;
@@ -960,6 +961,35 @@ for (const rel of ['word/styles.xml', 'word/document.xml']) {
   });
   zip.updateFile(rel, Buffer.from(fixed, 'utf8'));
 }
+
+// 2) docx-js 不写 Normal / DefaultParagraphFont 这两个"默认样式"的定义，
+//    但它生成的 Title / Heading1-6 / Strong / ListParagraph 等都 basedOn="Normal"，
+//    于是形成悬空引用（Word 会回退到内置默认值，严格校验器会报错）。
+let injected = 0;
+{
+  const entry = zip.getEntry('word/styles.xml');
+  if (entry) {
+    let styles = entry.getData().toString('utf8');
+    if (!/w:styleId="Normal"/.test(styles)) {
+      const rFonts = `<w:rFonts w:ascii="${FONT}" w:eastAsia="${FONT}" w:hAnsi="${FONT}" w:cs="${FONT}"/>`;
+      const normal =
+        `<w:style w:type="paragraph" w:default="1" w:styleId="Normal">` +
+        `<w:name w:val="Normal"/><w:qFormat/>` +
+        `<w:rPr>${rFonts}<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr>` +
+        `</w:style>`;
+      const dpf =
+        `<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont">` +
+        `<w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/>` +
+        `<w:semiHidden/><w:unhideWhenUsed/>` +
+        `</w:style>`;
+      if (/<w:style\s/.test(styles)) {
+        styles = styles.replace(/<w:style\s/, normal + dpf + '<w:style ');
+        injected = 2;
+      }
+    }
+    zip.updateFile('word/styles.xml', Buffer.from(styles, 'utf8'));
+  }
+}
 zip.writeZip(OUT);
 
 const size = fs.statSync(OUT).size;
@@ -967,4 +997,5 @@ console.log(`✔ DOCX 已生成：${OUT}`);
 console.log(`  文件大小：${(size / 1024).toFixed(1)} KB`);
 console.log(`  渲染块：${body.length} 个（含表格/代码/提示框）`);
 console.log(`  东亚字体修正：${patched} 处`);
+console.log(`  补写默认样式：${injected} 个（Normal / DefaultParagraphFont）`);
 console.log(`  目录条目：${tokens.slice(bodyStart).filter((t) => t.type === 'heading' && t.depth <= 2).length} 条`);
