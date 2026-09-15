@@ -536,6 +536,9 @@ function tokenToBlocks(token, depth = 0) {
     case 'hr':
       return [
         new Paragraph({
+          // keepNext：分隔线必须跟着后面的内容走，否则会孤零零留在页脚上方
+          keepNext: true,
+          keepLines: true,
           spacing: { before: 220, after: 220 },
           border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: C.rule } },
           children: [],
@@ -805,14 +808,19 @@ body.push(
     ],
   }),
 );
-/** 一级标题前紧挨着的分隔线是多余的（标题本来就会另起一页） */
+/**
+ * 分隔线只在「它自己承担分隔作用」时才画：
+ * 后面紧跟标题时，标题自带的下划线/色条已经完成了分隔，这条线是多余的，
+ * 而且它会因为标题另起一页而孤零零留在上一页底部。
+ */
 function isRedundantRule(tokens, i) {
   if (tokens[i]?.type !== 'hr') return false;
   for (let j = i + 1; j < tokens.length; j++) {
     const t = tokens[j];
-    // html 是锚点（<a id="p3-0"></a>），space 是空行，都要跳过
     if (t.type === 'space' || t.type === 'html') continue;
-    return t.type === 'heading' && t.depth === 1;
+    // 单独的 <a id="…"></a> 会被 marked 解析成一整个 paragraph，同样要跳过
+    if (t.type === 'paragraph' && /^<a\b[^>]*>\s*<\/a>$/i.test((t.text ?? '').trim())) continue;
+    return t.type === 'heading';
   }
   return false;
 }
