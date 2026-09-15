@@ -88,22 +88,41 @@ function slug(text) {
 }
 
 function distributeWidths(header, rows) {
-  const maxes = header.map((h, i) => {
-    let m = textWidth(h) + 2;
-    for (const r of rows) {
-      const cell = r[i];
-      if (cell === undefined) continue;
-      const t = typeof cell === 'string' ? cell : (cell.text ?? '');
-      m = Math.max(m, Math.min(textWidth(t) + 2, 44));
+  // 逐列估算：能折行的长文本按「平均长度」估，不可折的长 token（URL / 路径）按真实宽度估，
+  // 否则所有长列都被同等封顶，URL 列会被压到只能逐字符换行。
+  const cols = header.map((h, i) => {
+    const texts = [
+      h,
+      ...rows.map((r) => {
+        const cell = r[i];
+        if (cell === undefined) return '';
+        return typeof cell === 'string' ? cell : (cell.text ?? '');
+      }),
+    ];
+    let maxTok = 0;
+    let sum = 0;
+    for (const t of texts) {
+      const s = plain(t);
+      sum += textWidth(s);
+      for (const tok of s.split(/\s+/)) maxTok = Math.max(maxTok, textWidth(tok));
     }
-    return m;
+    const avg = sum / Math.max(1, texts.length);
+    return Math.min(58, Math.max(Math.min(avg + 2, 34), maxTok + 3, 8));
   });
-  const total = maxes.reduce((a, b) => a + b, 0) || 1;
-  const MIN = 820;
-  const widths = maxes.map((m) => Math.max(MIN, Math.round((m / total) * CONTENT_W)));
+
+  const total = cols.reduce((a, b) => a + b, 0) || 1;
+  const MIN = 900;
+  const widths = cols.map((c) => Math.max(MIN, Math.round((c / total) * CONTENT_W)));
   const sum = widths.reduce((a, b) => a + b, 0);
   widths[widths.indexOf(Math.max(...widths))] += CONTENT_W - sum;
   return widths;
+}
+
+/** Word 里长 URL 不好看：去掉协议头，缩短视觉宽度 */
+function linkLabel(text) {
+  const s = String(text).trim();
+  if (/^https?:\/\//i.test(s)) return s.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  return s;
 }
 
 /* ────────────────────────── 行内渲染 ────────────────────────── */
@@ -116,7 +135,7 @@ function inlineRuns(tokens, base = {}) {
       case 'text':
       case 'escape':
         if (t.tokens?.length) runs.push(...inlineRuns(t.tokens, base));
-        else runs.push(new TextRun({ text: t.text, ...base }));
+        else runs.push(new TextRun({ text: base.shortenUrls ? linkLabel(t.text) : t.text, ...base }));
         break;
       case 'strong':
         runs.push(...inlineRuns(t.tokens, { ...base, bold: true }));
@@ -142,7 +161,12 @@ function inlineRuns(tokens, base = {}) {
       case 'link': {
         const label = t.tokens?.length ? t.tokens : [{ type: 'text', text: t.text }];
         runs.push(
-          ...inlineRuns(label, { ...base, color: C.accent, underline: { color: C.accent } }),
+          ...inlineRuns(label, {
+            ...base,
+            color: C.accent,
+            underline: { color: C.accent },
+            shortenUrls: true,
+          }),
         );
         break;
       }
@@ -165,7 +189,9 @@ function inlineRuns(tokens, base = {}) {
 function codeBlock(text, lang) {
   const lines = String(text).replace(/\t/g, '  ').split('\n');
   const out = [];
-  if (lang) {
+  // ```text / ```plaintext 只是"不指定语言"，不该在块里印出 "text" 标签
+  const showLang = lang && !/^(text|plaintext|txt|none)$/i.test(lang);
+  if (showLang) {
     out.push(
       new Paragraph({
         spacing: { before: 180, after: 0 },
@@ -181,7 +207,7 @@ function codeBlock(text, lang) {
     out.push(
       new Paragraph({
         spacing: {
-          before: i === 0 && !lang ? 180 : 0,
+          before: i === 0 && !showLang ? 180 : 0,
           after: i === lines.length - 1 ? 180 : 0,
           line: 252,
           lineRule: 'auto',
@@ -236,6 +262,7 @@ function tableFromToken(token) {
 
   const headerRow = new TableRow({
     tableHeader: true,
+    cantSplit: true,
     children: header.map(
       (c, i) =>
         new TableCell({
@@ -260,6 +287,7 @@ function tableFromToken(token) {
   const bodyRows = rows.map(
     (r, ri) =>
       new TableRow({
+        cantSplit: true,
         children: r.map(
           (c, ci) =>
             new TableCell({
@@ -299,7 +327,7 @@ function tableFromToken(token) {
       },
       rows: [headerRow, ...bodyRows],
     }),
-    new Paragraph({ spacing: { after: 120 }, children: [] }),
+    new Paragraph({ spacing: { after: 220 }, children: [] }),
   ];
 }
 
@@ -402,13 +430,16 @@ function headingParagraph(token) {
   const text = plain(token.text);
 
   if (level === 1) {
+    // 色条与版心左右对齐；靠行高把文字在色条里垂直居中，用一个全角空格做左内边距
     return new Paragraph({
       heading: HeadingLevel.HEADING_1,
       pageBreakBefore: true,
-      spacing: { before: 0, after: 300, line: 380, lineRule: 'auto' },
+      spacing: { before: 0, after: 300, line: 500, lineRule: 'auto' },
       shading: { type: ShadingType.CLEAR, fill: C.accentDeep, color: 'auto' },
-      indent: { left: 220, right: 220 },
-      children: [new TextRun({ text, bold: true, size: 32, color: C.white, font: FONT })],
+      indent: { left: 0, right: 0 },
+      children: [
+        new TextRun({ text: `\u2003 ${text}`, bold: true, size: 32, color: C.white, font: FONT }),
+      ],
     });
   }
   if (level === 2) {
@@ -420,12 +451,12 @@ function headingParagraph(token) {
     });
   }
   if (level === 3) {
+    // 三级标题用细下划线，避免与"左侧色条"的提示框混淆
     return new Paragraph({
       heading: HeadingLevel.HEADING_3,
-      spacing: { before: 280, after: 130, line: 300, lineRule: 'auto' },
-      border: { left: { style: BorderStyle.SINGLE, size: 18, color: C.amber } },
-      indent: { left: 220 },
-      children: [new TextRun({ text, bold: true, size: 22, color: '33302C', font: FONT })],
+      spacing: { before: 280, after: 140, line: 300, lineRule: 'auto' },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: C.rule } },
+      children: [new TextRun({ text, bold: true, size: 22, color: '2F2C28', font: FONT })],
     });
   }
   return new Paragraph({
@@ -520,7 +551,7 @@ function coverPage() {
 
   return [
     band(C.accent, 300),
-    new Paragraph({ spacing: { before: 900 }, children: [] }),
+    new Paragraph({ spacing: { before: 620 }, children: [] }),
     new Paragraph({
       spacing: { before: 0, after: 140 },
       children: [
@@ -596,7 +627,25 @@ function coverPage() {
           }),
       ),
     }),
-    new Paragraph({ spacing: { before: 700 }, children: [] }),
+    new Paragraph({ spacing: { before: 520 }, children: [] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 40 },
+      children: [
+        new TextRun({
+          text: '在线阅读：anonymous99-rise.github.io/awesome-dsh-zotero',
+          size: 18,
+          color: C.muted,
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 360 },
+      children: [
+        new TextRun({ text: 'Markdown 源文件为本手册唯一内容源，Word 版与网页版均自动生成', size: 18, color: C.faint }),
+      ],
+    }),
     band(C.rule, 44),
   ];
 }
@@ -632,7 +681,7 @@ children.push(
     pageBreakBefore: true,
     spacing: { before: 0, after: 120 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: C.accent } },
-    children: [new TextRun({ text: '目录导航', bold: true, size: 34, color: C.accentDeep })],
+    children: [new TextRun({ text: '内容导航', bold: true, size: 34, color: C.accentDeep })],
   }),
 );
 children.push(new Paragraph({ spacing: { before: 120 }, children: [] }));
@@ -677,12 +726,9 @@ for (const t of tokens.slice(bodyStart)) {
   } else if (t.depth === 2) {
     children.push(
       new Paragraph({
-        indent: { left: 340 },
+        indent: { left: 300, hanging: 0 },
         spacing: { before: 20, after: 20 },
-        children: [
-          new TextRun({ text: '· ', color: C.amber, bold: true, size: 20 }),
-          new TextRun({ text: plain(t.text), size: 20, color: C.body }),
-        ],
+        children: [new TextRun({ text: plain(t.text), size: 20, color: C.body })],
       }),
     );
   }
@@ -776,6 +822,7 @@ const doc = new Document({
   sections: [
     {
       properties: {
+        titlePage: true,
         page: {
           size: { width: PAGE_W, height: PAGE_H, orientation: PageOrientation.PORTRAIT },
           margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
@@ -797,6 +844,7 @@ const doc = new Document({
             }),
           ],
         }),
+        first: new Header({ children: [new Paragraph({ children: [] })] }),
       },
       footers: {
         default: new Footer({
@@ -813,6 +861,9 @@ const doc = new Document({
               ],
             }),
           ],
+        }),
+        first: new Footer({
+          children: [new Paragraph({ children: [new TextRun({ text: '', size: 16 })] })],
         }),
       },
       children: [...children, ...body],

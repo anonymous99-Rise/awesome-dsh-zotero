@@ -63,11 +63,13 @@ const plainify = (s) =>
     .trim();
 
 function slugify(text) {
+  // 与 GitHub 的标题锚点算法一致：去掉标点后，**每个空格各自**变成一个连字符
+  // （因此 "附录 A · 词" 会得到 "附录-a--词" 这样的双连字符，正文里的手写链接才能对上）
   return String(text)
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s_-]/gu, '')
     .trim()
-    .replace(/\s+/g, '-');
+    .replace(/\s/g, '-');
 }
 
 const PART_SLUGS = [
@@ -368,6 +370,12 @@ for (const p of parts) {
 
 // 前言里也可能藏着锚点，一并登记（指向该部分第一小节）
 for (const p of parts) {
+  // 一级标题本身（"# 附录 A · …"）不在任何 section 的 tokens 里，
+  // 必须单独登记，否则正文里 `[附录 A](#附录-a--…)` 这类链接无法改写。
+  const h1 = slugify(p.title);
+  if (h1 && !anchorMap.has(h1)) {
+    anchorMap.set(h1, { part: p.id, section: p.sections[0]?.id ?? '' });
+  }
   if (!p.preamble?.length) continue;
   const here = { part: p.id, section: p.sections[0]?.id ?? '' };
   for (const m of JSON.stringify(p.preamble).matchAll(/id=\\"([^"\\]+)\\"/g)) {

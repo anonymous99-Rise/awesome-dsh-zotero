@@ -6,7 +6,11 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 home = io.open('out/index.html', encoding='utf-8').read()
 part = io.open('out/handbook/dsh-desktop/index.html', encoding='utf-8').read()
-css = io.open('out/_next/static/css/' + __import__('os').listdir('out/_next/static/css')[0], encoding='utf-8').read()
+css_raw = io.open(
+    'out/_next/static/css/' + __import__('os').listdir('out/_next/static/css')[0], encoding='utf-8'
+).read()
+# 压缩后的 CSS 去掉了引号与空格，比对前先归一化，避免误报
+css = css_raw.replace('"', '').replace("'", '').replace(' ', '')
 
 checks = [
     ('home: hero badge', '写给生物信息学' in home),
@@ -23,10 +27,10 @@ checks = [
     ('part: code block', 'class="cb"' in part),
     ('part: table', 'tablewrap' in part),
     ('part: callout', 'callout' in part),
-    ('css: accent token', '--accent: #0f766e' in css),
-    ('css: dark theme', "[data-theme='dark']" in css),
-    ('css: print rules', '@media print' in css),
-    ('css: table sticky', 'position: sticky' in css),
+    ('css: accent token', '--accent:#0f766e' in css),
+    ('css: dark theme', 'data-theme=dark' in css),
+    ('css: print rules', '@mediaprint' in css),
+    ('css: table sticky', 'position:sticky' in css),
 ]
 for k, v in checks:
     print(('  OK  ' if v else ' FAIL '), k)
