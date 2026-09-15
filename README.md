@@ -103,6 +103,21 @@ cd web && python scripts/qa-out.py               # 导出产物关键元素自�
 
 **首次使用需要在仓库设置里开启**：`Settings → Pages → Build and deployment → Source: GitHub Actions`。
 
+### ⚠️ 用自定义域名时必读
+
+站点是**按项目路径**构建的：所有资源都带 `/awesome-dsh-zotero/` 前缀
+（由 `NEXT_PUBLIC_BASE_PATH=${{ steps.pages.outputs.base_path }}` 注入）。这带来两个后果：
+
+1. **加自定义域名后必须重跑一次 workflow**。换域名**不会**触发构建，而旧产物的资源前缀仍是
+   `/awesome-dsh-zotero/`；域名下的站点跑在**根路径**上，前缀对不上 → **CSS/JS 全部 404**
+   （表现就是"页面没样式"）。重跑后 `base_path` 变成空字符串，资源路径自动改为根路径。
+   触发方式：`Actions → 选最新一次运行 → Re-run all jobs`，或随便推一个空提交。
+2. **删掉域名后，你的浏览器里可能还留着旧的 301 跳转缓存**。GitHub 在配置过自定义域名的
+   期间会对 `*.github.io` 地址回 301，指向那个域名；删掉域名后**服务端不再跳转**，
+   但浏览器缓存的 301 可能继续把你跳到已经失效的旧域名。
+   处理：清掉该站点的缓存（无痕窗口或 `chrome://settings/content/all` 搜 `github.io` 删除），
+   或先访问带参数的地址绕过缓存：`https://anonymous99-rise.github.io/awesome-dsh-zotero/?v=2`。
+
 ---
 
 ## 内容说明与免责
