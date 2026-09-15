@@ -16,5 +16,8 @@
     "adm-zip": "^0.6.1",
     "docx": "^9.5.1",
     "marked": "^15.0.7"
+  },
+  "dependencies": {
+    "mammoth": "^1.12.3"
   }
 }

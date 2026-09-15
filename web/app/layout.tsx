@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
 };
 
-const THEME_BOOT = `(function(){try{var t=localStorage.getItem('dsh-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;}catch(e){}})();`;
+const THEME_BOOT = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='dark'||q==='light')?q:(localStorage.getItem('dsh-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));document.documentElement.dataset.theme=t;}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const handbook = getHandbook();
@@ -59,6 +59,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               rel="noopener noreferrer"
             >
               GitHub 仓库
+            </a>
+            <a
+              href="https://github.com/anonymous99-Rise/awesome-dsh-zotero/edit/main/awesome_zotero_plugins.md"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              补充 / 纠错
             </a>
             <a
               href="https://kael-odin.github.io/awesome-academic-research-skills/"

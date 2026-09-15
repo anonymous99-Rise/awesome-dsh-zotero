@@ -26,6 +26,7 @@ import {
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlign,
@@ -73,9 +74,23 @@ const plain = (s) =>
     .replace(/[*_`~]/g, '')
     .trim();
 
+/**
+ * 估算列宽专用：必须按「渲染后的可见文字」计算。
+ * 关键点：`<https://…>` 自动链接会渲染成一长串 URL，若按 `plain()` 当成 HTML 标签删掉，
+ * 含 URL 的列会被严重低估、被压成逐字符换行。
+ */
+const widthText = (s) =>
+  String(s)
+    .replace(/<((?:https?|mailto):[^>\s]+)>/g, '$1') // 自动链接 → 保留 URL 文本
+    .replace(/<br\s*\/?>/gi, ' ') // <br> → 空格
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // markdown 链接 → 只留可见文字
+    .replace(/[*_`~]/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+
 function textWidth(s) {
   let w = 0;
-  for (const ch of plain(s)) w += /[\u2E80-\uFFFD]/.test(ch) ? 2 : 1;
+  for (const ch of String(s)) w += /[\u2E80-\uFFFD]/.test(ch) ? 2 : 1;
   return w;
 }
 
@@ -102,12 +117,12 @@ function distributeWidths(header, rows) {
     let maxTok = 0;
     let sum = 0;
     for (const t of texts) {
-      const s = plain(t);
+      const s = widthText(t);
       sum += textWidth(s);
       for (const tok of s.split(/\s+/)) maxTok = Math.max(maxTok, textWidth(tok));
     }
     const avg = sum / Math.max(1, texts.length);
-    return Math.min(58, Math.max(Math.min(avg + 2, 34), maxTok + 3, 8));
+    return Math.min(64, Math.max(Math.min(avg + 2, 34), maxTok + 3, 8));
   });
 
   const total = cols.reduce((a, b) => a + b, 0) || 1;
@@ -188,44 +203,64 @@ function inlineRuns(tokens, base = {}) {
 
 function codeBlock(text, lang) {
   const lines = String(text).replace(/\t/g, '  ').split('\n');
-  const out = [];
-  // ```text / ```plaintext 只是"不指定语言"，不该在块里印出 "text" 标签
-  const showLang = lang && !/^(text|plaintext|txt|none)$/i.test(lang);
-  if (showLang) {
-    out.push(
-      new Paragraph({
-        spacing: { before: 180, after: 0 },
-        indent: { left: 140, right: 140 },
-        shading: { type: ShadingType.CLEAR, fill: 'E4E1D9', color: 'auto' },
-        children: [
-          new TextRun({ text: `  ${lang}  `, font: FONT_MONO, size: 15, color: C.muted, bold: true }),
-        ],
-      }),
-    );
-  }
-  lines.forEach((ln, i) => {
-    out.push(
+  const paras = lines.map(
+    (ln, i) =>
       new Paragraph({
         spacing: {
-          before: i === 0 && !showLang ? 180 : 0,
-          after: i === lines.length - 1 ? 180 : 0,
+          before: i === 0 ? 20 : 0,
+          after: i === lines.length - 1 ? 20 : 0,
           line: 252,
           lineRule: 'auto',
         },
-        indent: { left: 140, right: 140 },
-        shading: { type: ShadingType.CLEAR, fill: C.codeBg, color: 'auto' },
-        children: [new TextRun({ text: ln.length ? ln : ' ', font: FONT_MONO, size: 17, color: '2F2C28' })],
+        children: [
+          new TextRun({
+            text: ln.length ? ln : ' ',
+            font: FONT_MONO,
+            size: 17,
+            color: '2F2C28',
+          }),
+        ],
       }),
-    );
-  });
-  return out;
+  );
+
+  // 用单元格承载代码，底色与左右内边距都能与正文/提示框严格对齐
+  return [
+    new Table({
+      layout: TableLayoutType.FIXED,
+      width: { size: CONTENT_W, type: WidthType.DXA },
+      columnWidths: [CONTENT_W],
+      borders: {
+        top: NONE_BORDER,
+        bottom: NONE_BORDER,
+        left: NONE_BORDER,
+        right: NONE_BORDER,
+        insideHorizontal: NONE_BORDER,
+        insideVertical: NONE_BORDER,
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: CONTENT_W, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: C.codeBg, color: 'auto' },
+              margins: { top: 140, bottom: 140, left: 190, right: 190 },
+              children: paras,
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+  ];
 }
 
 function callout(children, { fill, bar }) {
   return [
     new Table({
+      // 固定布局 + 与版心同宽：左右边缘才能和正文/表格对齐
+      layout: TableLayoutType.FIXED,
       width: { size: CONTENT_W, type: WidthType.DXA },
-      columnWidths: [CONTENT_W - 140],
+      columnWidths: [CONTENT_W],
       borders: {
         top: NONE_BORDER,
         bottom: NONE_BORDER,
@@ -238,7 +273,7 @@ function callout(children, { fill, bar }) {
         new TableRow({
           children: [
             new TableCell({
-              width: { size: CONTENT_W - 140, type: WidthType.DXA },
+              width: { size: CONTENT_W, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill, color: 'auto' },
               margins: { top: 150, bottom: 150, left: 220, right: 180 },
               children,
@@ -315,6 +350,7 @@ function tableFromToken(token) {
 
   return [
     new Table({
+      layout: TableLayoutType.FIXED,
       width: { size: CONTENT_W, type: WidthType.DXA },
       columnWidths: widths,
       borders: {
@@ -331,9 +367,16 @@ function tableFromToken(token) {
   ];
 }
 
-function listItems(token, depth = 0) {
+/**
+ * 有序列表必须每个列表用一个新的 numbering instance，
+ * 否则 Word 会把全文的 1. 2. 3. 连成一条（出现 "14." 这种编号）。
+ */
+let olInstance = 0;
+
+function listItems(token, depth = 0, instance) {
   const out = [];
   const ordered = Boolean(token.ordered);
+  const inst = ordered ? (instance ?? ++olInstance) : undefined;
   for (const item of token.items ?? []) {
     const parts = [...(item.tokens ?? [])];
     const first = parts[0];
@@ -364,7 +407,7 @@ function listItems(token, depth = 0) {
     out.push(
       new Paragraph({
         numbering: ordered
-          ? { reference: 'ordered-list', level: Math.min(depth, 4) }
+          ? { reference: 'ordered-list', level: Math.min(depth, 4), instance: inst }
           : { reference: 'bullet-list', level: Math.min(depth, 4) },
         spacing: { before: 50, after: 50, line: 300, lineRule: 'auto' },
         children: body,
@@ -372,7 +415,7 @@ function listItems(token, depth = 0) {
     );
 
     for (const rest of parts.slice(1)) {
-      if (rest.type === 'list') out.push(...listItems(rest, depth + 1));
+      if (rest.type === 'list') out.push(...listItems(rest, depth + 1, inst));
       else if (rest.type === 'blockquote') out.push(...blockquoteBlocks(rest, depth));
       else if (rest.type === 'code') out.push(...codeBlock(rest.text, rest.lang));
       else if (rest.type === 'table') out.push(...tableFromToken(rest));
@@ -551,7 +594,7 @@ function coverPage() {
 
   return [
     band(C.accent, 300),
-    new Paragraph({ spacing: { before: 620 }, children: [] }),
+    new Paragraph({ spacing: { before: 2200 }, children: [] }),
     new Paragraph({
       spacing: { before: 0, after: 140 },
       children: [
@@ -585,6 +628,7 @@ function coverPage() {
       ],
     }),
     new Table({
+      layout: TableLayoutType.FIXED,
       width: { size: CONTENT_W, type: WidthType.DXA },
       columnWidths: [keyCol, CONTENT_W - keyCol],
       borders: {

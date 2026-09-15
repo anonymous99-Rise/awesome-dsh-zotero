@@ -48,9 +48,13 @@ export default function Shell({
 
   /* ── 主题 ── */
   useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('theme');
     const saved = localStorage.getItem('dsh-theme') as 'light' | 'dark' | null;
     const initial =
-      saved ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      q === 'dark' || q === 'light'
+        ? q
+        : (saved ??
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
     setTheme(initial);
     document.documentElement.dataset.theme = initial;
   }, []);
