@@ -122,7 +122,8 @@ function distributeWidths(header, rows) {
       for (const tok of s.split(/\s+/)) maxTok = Math.max(maxTok, textWidth(tok));
     }
     const avg = sum / Math.max(1, texts.length);
-    return Math.min(64, Math.max(Math.min(avg + 2, 34), maxTok + 3, 8));
+    // 下限 18：像「⭐ 首选」这种 emoji + 短词的小列，给 8 会窄到把「备选」拆成两行
+    return Math.min(64, Math.max(Math.min(avg + 2, 34), maxTok + 3, 18));
   });
 
   const total = cols.reduce((a, b) => a + b, 0) || 1;
@@ -804,7 +805,22 @@ body.push(
     ],
   }),
 );
-for (const t of bodyTokens) body.push(...tokenToBlocks(t));
+/** 一级标题前紧挨着的分隔线是多余的（标题本来就会另起一页） */
+function isRedundantRule(tokens, i) {
+  if (tokens[i]?.type !== 'hr') return false;
+  for (let j = i + 1; j < tokens.length; j++) {
+    const t = tokens[j];
+    // html 是锚点（<a id="p3-0"></a>），space 是空行，都要跳过
+    if (t.type === 'space' || t.type === 'html') continue;
+    return t.type === 'heading' && t.depth === 1;
+  }
+  return false;
+}
+
+for (const [i, t] of bodyTokens.entries()) {
+  if (isRedundantRule(bodyTokens, i)) continue;
+  body.push(...tokenToBlocks(t));
+}
 
 const doc = new Document({
   creator: 'DSH 科研工具手册',

@@ -24,6 +24,8 @@
   --accent-ink: #0b4f4a;
   --accent-soft: #e6f3f1;
   --accent-line: #bcdcd8;
+  --table-head: #0f766e;
+  --table-head-ink: #ffffff;
 
   --amber: #b45309;
   --amber-soft: #fdf4e7;
@@ -58,6 +60,9 @@
   --accent-ink: #7ff0e2;
   --accent-soft: #16302e;
   --accent-line: #245c56;
+  /* 表头在暗色下必须压深：用亮青做底会变成一块刺眼的浅色方块 */
+  --table-head: #115e59;
+  --table-head-ink: #ecfdf5;
 
   --amber: #f0b264;
   --amber-soft: #332614;
@@ -167,6 +172,11 @@ img {
   color: var(--ink);
   letter-spacing: -0.01em;
   white-space: nowrap;
+  min-width: 0;
+}
+.topbar__brandtext {
+  min-width: 0;
+  overflow: hidden;
 }
 .topbar__brand:hover {
   text-decoration: none;
@@ -242,6 +252,11 @@ img {
   padding: 0;
   justify-content: center;
 }
+.btn--icon svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
 .btn__kbd {
   font-size: 11px;
   padding: 1px 5px;
@@ -306,8 +321,25 @@ img {
   font-weight: 600;
 }
 .navlink__icon {
-  font-size: 15px;
+  font-size: 11.5px;
   flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  line-height: 1;
+  transition: 0.14s ease;
+}
+.navlink:hover .navlink__icon {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.navlink.is-active .navlink__icon {
+  background: var(--surface);
+  border-color: var(--accent-line);
 }
 .navlink__count {
   margin-left: auto;
@@ -343,7 +375,8 @@ img {
 }
 .main--solo {
   grid-template-columns: minmax(0, 1fr);
-  max-width: 900px;
+  max-width: 1000px;
+  margin-inline: auto;
 }
 .rail {
   position: sticky;
@@ -823,19 +856,24 @@ img {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--accent);
-  color: #fff;
+  background: var(--table-head);
+  color: var(--table-head-ink);
   text-align: left;
   font-weight: 700;
   padding: 11px 14px;
   white-space: nowrap;
-  border-bottom: 1px solid var(--accent-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--table-head) 70%, #000);
 }
 .tablewrap td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   line-height: 1.62;
+}
+/* 末列给个下限，避免出现「作者没发到 npm 的」这种只剩一个字的孤行 */
+.tablewrap td:last-child,
+.tablewrap th:last-child {
+  min-width: 6.5em;
 }
 .tablewrap tbody tr:nth-child(even) {
   background: var(--surface-2);
@@ -1152,6 +1190,17 @@ img {
   display: none;
 }
 
+/* 暗色下正文是白色，渐变标题要跟它拉开差距才有强调效果 */
+[data-theme='dark'] .hero h1 {
+  color: #cbd5e1;
+}
+[data-theme='dark'] .hero h1 .grad {
+  background: linear-gradient(120deg, #5eead4, #fbbf24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .main {
@@ -1210,6 +1259,63 @@ img {
   }
   .footer {
     padding: 22px 18px 40px;
+  }
+}
+
+/* 小屏：头栏瘦身、统计块两列、正文不顶边 */
+@media (max-width: 620px) {
+  .hide-sm {
+    display: none !important;
+  }
+  .btn__label,
+  .btn__kbd {
+    display: none;
+  }
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  /* 品牌文字可被压缩省略，按钮组永不收缩、永不越界 */
+  .topbar__brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .topbar__title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13.5px;
+  }
+  /* 副标题在这一档必须保持隐藏（上一档已隐藏，别被后面的规则又打开） */
+  .topbar__sub {
+    display: none;
+  }
+  .topbar__spacer {
+    display: none;
+  }
+  .topbar__actions {
+    flex: 0 0 auto;
+  }
+  .hero {
+    padding: 26px 16px 24px;
+  }
+  .hero h1,
+  .hero p.lead,
+  .hero__badge {
+    overflow-wrap: anywhere;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat:last-child {
+    grid-column: 1 / -1;
+  }
+  .stat__v {
+    font-size: 20px;
+  }
+  .main {
+    padding: 18px 14px 80px;
   }
 }
 

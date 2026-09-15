@@ -33,6 +33,37 @@ function highlight(text: string, key: string) {
   return safe.replace(re, '<mark>$1</mark>');
 }
 
+function IconDownload() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v12" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+function IconGithub() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.55v-2.1c-3.2.7-3.88-1.4-3.88-1.4-.53-1.35-1.3-1.71-1.3-1.71-1.06-.72.08-.71.08-.71 1.17.08 1.79 1.2 1.79 1.2 1.04 1.79 2.73 1.27 3.4.97.1-.76.41-1.27.74-1.56-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.42.36.8 1.08.8 2.18v3.23c0 .3.2.66.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z" />
+    </svg>
+  );
+}
+
+function IconTheme({ dark }: { dark: boolean }) {
+  return dark ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+    </svg>
+  );
+}
+
 export default function Shell({
   parts,
   children,
@@ -117,6 +148,7 @@ export default function Shell({
     () => parts.find((p) => pathname.includes(`/handbook/${p.id}`)),
     [parts, pathname],
   );
+  const isHome = !activePart;
 
   return (
     <>
@@ -132,7 +164,7 @@ export default function Shell({
         </button>
         <Link href="/" className="topbar__brand">
           <span className="topbar__mark">🧬</span>
-          <span>
+          <span className="topbar__brandtext">
             <span className="topbar__title">DSH 科研工具手册</span>
             <br />
             <span className="topbar__sub">Zotero × DSH Desktop × 生物信息学</span>
@@ -141,27 +173,28 @@ export default function Shell({
         <span className="topbar__spacer" />
         <div className="topbar__actions">
           <button className="btn" onClick={() => setSearchOpen(true)} aria-label="搜索全文">
-            🔍 <span style={{ display: 'inline' }}>搜索</span>
+            <span aria-hidden="true">🔍</span>
+            <span className="btn__label">搜索</span>
             <kbd className="btn__kbd">Ctrl K</kbd>
           </button>
           <a
-            className="btn btn--ghost btn--icon"
+            className="btn btn--ghost btn--icon hide-sm"
             href={`${BASE}/downloads/dsh-research-handbook.docx`}
             download
             title="下载 Word 版"
             aria-label="下载 Word 版"
           >
-            📄
+            <IconDownload />
           </a>
           <a
-            className="btn btn--ghost btn--icon"
+            className="btn btn--ghost btn--icon hide-sm"
             href="https://github.com/anonymous99-Rise/awesome-dsh-zotero"
             target="_blank"
             rel="noopener noreferrer"
             title="GitHub 仓库"
             aria-label="GitHub 仓库"
           >
-            🐙
+            <IconGithub />
           </a>
           <button
             className="btn btn--ghost btn--icon"
@@ -169,7 +202,7 @@ export default function Shell({
             title="切换深浅色"
             aria-label="切换深浅色"
           >
-            {theme === 'dark' ? '🌞' : '🌙'}
+            <IconTheme dark={theme === 'dark'} />
           </button>
         </div>
       </header>
@@ -179,7 +212,7 @@ export default function Shell({
         <aside className="sidebar" data-open={drawer} onClick={() => setDrawer(false)}>
           <div className="sidebar__group">
             <div className="sidebar__label">开始</div>
-            <Link className="navlink" href="/">
+            <Link className={`navlink${isHome ? ' is-active' : ''}`} href="/">
               <span className="navlink__icon">🏠</span>
               <span>首页 · 手册总览</span>
             </Link>
